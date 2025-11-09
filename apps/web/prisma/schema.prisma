@@ -31,6 +31,9 @@ model User {
   sessions      Session[]
   profile       Profile?
   auditLogs     AuditLog[]
+  twoFactorSecret TwoFactorSecret?
+  backupCodes   BackupCode[]
+  trustedDevices TrustedDevice[]
 
   @@index([email])
   @@index([role])
@@ -213,4 +216,71 @@ model Notification {
   @@index([userId])
   @@index([isRead])
   @@map("notifications")
+}
+
+// Two-Factor Authentication Secret
+model TwoFactorSecret {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  secret      String   // TOTP secret (encrypted)
+  enabled     Boolean  @default(false)
+  method      TwoFactorMethod @default(TOTP)
+
+  // Phone for SMS 2FA
+  phoneNumber String?
+  phoneVerified Boolean @default(false)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  verifiedAt  DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("two_factor_secrets")
+}
+
+enum TwoFactorMethod {
+  TOTP      // Time-based One-Time Password (Google Authenticator, etc.)
+  SMS       // SMS-based OTP
+  EMAIL     // Email-based OTP
+}
+
+// Backup Codes for 2FA
+model BackupCode {
+  id        String   @id @default(cuid())
+  userId    String
+  code      String   // Hashed backup code
+  used      Boolean  @default(false)
+  usedAt    DateTime?
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("backup_codes")
+}
+
+// Trusted Devices for 2FA
+model TrustedDevice {
+  id          String   @id @default(cuid())
+  userId      String
+  deviceId    String   // Unique device identifier
+  deviceName  String
+  deviceType  String?  // "mobile", "desktop", "tablet"
+  ipAddress   String?
+  userAgent   String?
+  lastUsedAt  DateTime @default(now())
+  expiresAt   DateTime
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, deviceId])
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("trusted_devices")
 }

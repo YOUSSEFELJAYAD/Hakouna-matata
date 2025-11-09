@@ -1,5 +1,6 @@
 import { router } from "../trpc";
 import { userRouter } from "./user";
+import { twoFactorRouter } from "./2fa";
 
 /**
  * Main App Router
@@ -7,6 +8,7 @@ import { userRouter } from "./user";
  */
 export const appRouter = router({
   user: userRouter,
+  twoFactor: twoFactorRouter,
 });
 
 export type AppRouter = typeof appRouter;
