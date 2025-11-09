@@ -34,6 +34,13 @@ model User {
   twoFactorSecret TwoFactorSecret?
   backupCodes   BackupCode[]
   trustedDevices TrustedDevice[]
+  notificationTokens NotificationToken[]
+  posts         Post[]
+  comments      Comment[]
+  likes         Like[]
+  followers     Follow[] @relation("Followers")
+  following     Follow[] @relation("Following")
+  achievements  UserAchievement[]
 
   @@index([email])
   @@index([role])
@@ -351,4 +358,145 @@ enum VirusScanStatus {
   CLEAN         // No threats detected
   INFECTED      // Malware detected
   FAILED        // Scan failed
+}
+
+// Push Notifications
+model NotificationToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  platform  String   // "ios", "android", "web"
+  deviceId  String?
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@map("notification_tokens")
+}
+
+// Social Features
+model Post {
+  id        String    @id @default(cuid())
+  userId    String
+  content   String    @db.Text
+  published Boolean   @default(true)
+  viewCount Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comments Comment[]
+  likes    Like[]
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("posts")
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+  @@index([userId])
+  @@map("comments")
+}
+
+model Like {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@index([postId])
+  @@index([userId])
+  @@map("likes")
+}
+
+model Follow {
+  id          String   @id @default(cuid())
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+
+  follower  User @relation("Followers", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+  @@map("follows")
+}
+
+// Gamification
+model Achievement {
+  id          String   @id @default(cuid())
+  name        String
+  description String
+  icon        String
+  points      Int      @default(0)
+  category    String
+  createdAt   DateTime @default(now())
+
+  users UserAchievement[]
+
+  @@map("achievements")
+}
+
+model UserAchievement {
+  id            String   @id @default(cuid())
+  userId        String
+  achievementId String
+  unlockedAt    DateTime @default(now())
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, achievementId])
+  @@index([userId])
+  @@map("user_achievements")
+}
+
+// Analytics
+model PageView {
+  id        String   @id @default(cuid())
+  userId    String?
+  path      String
+  referrer  String?
+  userAgent String?
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([path])
+  @@index([createdAt])
+  @@map("page_views")
+}
+
+model Event {
+  id         String   @id @default(cuid())
+  userId     String?
+  name       String
+  properties Json?
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([name])
+  @@index([createdAt])
+  @@map("events")
 }
