@@ -1,10 +1,12 @@
 import { z } from "zod";
 import { router, publicProcedure, protectedProcedure, adminProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
+import { sanitizeHtml, sanitizePhone } from "@/lib/security/sanitize";
 
 /**
  * User Router
  * Handles user-related operations with role-based access control
+ * Enhanced with input sanitization and comprehensive audit logging
  */
 export const userRouter = router({
   // Get current user profile
@@ -35,15 +37,30 @@ export const userRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const { name, ...profileData } = input;
+      const { name, bio, phone, address, city, country, postalCode, ...rest } = input;
+
+      // Sanitize inputs to prevent XSS
+      const sanitizedData = {
+        ...(name && { name: sanitizeHtml(name) }),
+        ...(bio && { bio: sanitizeHtml(bio) }),
+        ...(phone && { phone: sanitizePhone(phone) }),
+        ...(address && { address: sanitizeHtml(address) }),
+        ...(city && { city: sanitizeHtml(city) }),
+        ...(country && { country: sanitizeHtml(country) }),
+        ...(postalCode && { postalCode: sanitizeHtml(postalCode) }),
+        ...rest,
+      };
 
       // Update user name if provided
-      if (name) {
+      if (sanitizedData.name) {
         await ctx.prisma.user.update({
           where: { id: ctx.user.id },
-          data: { name },
+          data: { name: sanitizedData.name },
         });
       }
+
+      // Extract profile-specific data
+      const { name: _, ...profileData } = sanitizedData;
 
       // Update or create profile
       const profile = await ctx.prisma.profile.upsert({
@@ -52,6 +69,20 @@ export const userRouter = router({
         create: {
           userId: ctx.user.id,
           ...profileData,
+        },
+      });
+
+      // Audit log
+      await ctx.prisma.auditLog.create({
+        data: {
+          userId: ctx.user.id,
+          action: "UPDATE_PROFILE",
+          resource: "PROFILE",
+          resourceId: ctx.user.id,
+          details: { updatedFields: Object.keys(input) },
+          status: "SUCCESS",
+          ipAddress: ctx.req.headers.get("x-forwarded-for") || "unknown",
+          userAgent: ctx.req.headers.get("user-agent") || "unknown",
         },
       });
 
