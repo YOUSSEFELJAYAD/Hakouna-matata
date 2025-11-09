@@ -284,3 +284,71 @@ model TrustedDevice {
   @@index([expiresAt])
   @@map("trusted_devices")
 }
+
+// File Upload & Management
+model File {
+  id            String     @id @default(cuid())
+  userId        String?
+  fileName      String
+  originalName  String
+  mimeType      String
+  size          BigInt     // File size in bytes
+  url           String     // S3 URL or local path
+  thumbnailUrl  String?    // Thumbnail for images
+  key           String     @unique  // S3 key or unique identifier
+  bucket        String?    // S3 bucket name
+
+  // Metadata
+  width         Int?       // For images
+  height        Int?       // For images
+  duration      Int?       // For videos (in seconds)
+
+  // Organization
+  folder        String?    // Virtual folder path
+  tags          String[]   // Search tags
+
+  // Security
+  isPublic      Boolean    @default(false)
+  accessLevel   FileAccessLevel @default(PRIVATE)
+
+  // Status
+  uploadStatus  FileUploadStatus @default(PENDING)
+  virusScan     VirusScanStatus? @default(PENDING)
+
+  // Tracking
+  downloads     Int        @default(0)
+  lastAccessed  DateTime?
+
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  expiresAt     DateTime?  // For temporary files
+
+  @@index([userId])
+  @@index([folder])
+  @@index([uploadStatus])
+  @@index([createdAt])
+  @@map("files")
+}
+
+enum FileAccessLevel {
+  PRIVATE       // Only owner can access
+  SHARED        // Shared with specific users
+  PUBLIC        // Anyone with link can access
+  RESTRICTED    // Requires authentication
+}
+
+enum FileUploadStatus {
+  PENDING       // Upload initiated
+  UPLOADING     // Upload in progress
+  PROCESSING    // Post-processing (thumbnails, etc.)
+  COMPLETED     // Upload successful
+  FAILED        // Upload failed
+}
+
+enum VirusScanStatus {
+  PENDING       // Awaiting scan
+  SCANNING      // Scan in progress
+  CLEAN         // No threats detected
+  INFECTED      // Malware detected
+  FAILED        // Scan failed
+}
