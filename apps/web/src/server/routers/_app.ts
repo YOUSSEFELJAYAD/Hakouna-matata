@@ -1,6 +1,9 @@
 import { router } from "../trpc";
 import { userRouter } from "./user";
 import { twoFactorRouter } from "./2fa";
+import { fileRouter } from "./file";
+import { socialRouter } from "./social";
+import { paymentRouter } from "./payment";
 
 /**
  * Main App Router
@@ -9,6 +12,9 @@ import { twoFactorRouter } from "./2fa";
 export const appRouter = router({
   user: userRouter,
   twoFactor: twoFactorRouter,
+  file: fileRouter,
+  social: socialRouter,
+  payment: paymentRouter,
 });
 
 export type AppRouter = typeof appRouter;
